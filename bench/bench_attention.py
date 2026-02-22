@@ -3,8 +3,12 @@ import torch
 import torch.nn.functional as F
 from torch.utils.benchmark import Timer
 
+
+from attention.naive import sdpa_naive
+
 from attention.attn_baseline import scaled_dot_product_attention
 from attention.naive import standard_attention
+
 
 
 def run_bench(label, fn, q, k, v):
@@ -36,9 +40,10 @@ def main():
 
     causal = True
 
-    
+    run_bench("naive", lambda q,k,v: sdpa_naive(q,k,v, is_causal=causal), q,k,v)
     run_bench("standard_algo (explicit backward not used here)", lambda q,k,v: standard_attention(q,k,v, causal=causal), q,k,v)
     run_bench("pytorch_sdpa", lambda q,k,v: F.scaled_dot_product_attention(q,k,v, is_causal=causal), q,k,v)
+
 
 
 if __name__ == "__main__":
