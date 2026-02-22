@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+ 
+[project]
+name = "flashattention-study"
+version = "0.0.1"
+dependencies = ["torch"]
+ 
+[tool.setuptools.packages.find]
+where = ["."]
