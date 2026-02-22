@@ -1,4 +1,4 @@
-# tests/test_sdpa.py (or your current test file)
+# tests/test_correctness.py (or current test file)
 import sys
 from pathlib import Path
 
