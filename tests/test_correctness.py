@@ -1,4 +1,4 @@
-# tests/test_correctness.py (or current test file)
+# tests/test_sdpa.py (or your current test file)
 import sys
 from pathlib import Path
 
@@ -9,6 +9,7 @@ import torch
 import pytest
 import torch.nn.functional as F
 
+from attention.naive import sdpa_naive
 from attention.attn_baseline import scaled_dot_product_attention
 from attention.naive import standard_attention
 
@@ -18,7 +19,9 @@ def torch_sdpa(q, k, v, causal=False):
 
 
 def run_impl(name, q, k, v, causal):
-    if name == "baseline":
+    if name == "naive":
+        return sdpa_naive(q, k, v, is_causal=causal)
+    elif name == "baseline":
         out, _ = scaled_dot_product_attention(q, k, v, causal=causal)
         return out
     elif name == "standard_algo":
