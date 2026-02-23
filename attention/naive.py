@@ -1,9 +1,8 @@
-# attention/attn_standard.py
+# attention/naive.py
 import math
 import torch
 from torch import Tensor
 
-# attention/naive.py
 import math
 import torch
 
