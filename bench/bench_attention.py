@@ -28,6 +28,8 @@ class BenchConfig:
     iters: int = 50
     backward: bool = True    # measure fwd+bwd when True; still also measures fwd-only
 
+    
+
 
 def _get_dtype(dtype_str: str) -> torch.dtype:
     m = {
@@ -45,24 +47,18 @@ def _sync():
         torch.cuda.synchronize()
 
 
+def _normalize_out(out):
+    return out[0] if isinstance(out, tuple) else out
+
 @torch.no_grad()
-def _fwd_only(fn: Callable, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
-    out = fn(q, k, v)
-    # Some of your functions return (out, extra). Normalize here.
-    if isinstance(out, tuple):
-        out = out[0]
-    return out
+def _fwd_only(fn, *args, **kwargs):
+    return _normalize_out(fn(*args, **kwargs))
 
-
-def _fwd_bwd(fn: Callable, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
-    out = fn(q, k, v)
-    if isinstance(out, tuple):
-        out = out[0]
-    # simple scalar loss to force backward
+def _fwd_bwd(fn, *args, **kwargs):
+    out = _normalize_out(fn(*args, **kwargs))
     loss = out.float().square().mean()
     loss.backward()
     return out
-
 
 def _reset_grads(*tensors: torch.Tensor):
     for t in tensors:
@@ -155,6 +151,11 @@ def benchmark_one(L: int, cfg: BenchConfig, impl: Dict[str, Any]) -> Dict[str, A
         k = torch.randn(cfg.B, cfg.H, L, cfg.D, device=cfg.device, dtype=dtype, requires_grad=cfg.backward)
         v = torch.randn(cfg.B, cfg.H, L, cfg.D, device=cfg.device, dtype=dtype, requires_grad=cfg.backward)
 
+        
+        fwd_call = lambda: _fwd_only(fn, q, k, v)
+        bwd_call = lambda: (_fwd_bwd(fn, q, k, v), _reset_grads(q, k, v))
+
+
         @torch.no_grad()
         def fwd_call():
             out = fn(q, k, v)
@@ -179,6 +180,11 @@ def benchmark_one(L: int, cfg: BenchConfig, impl: Dict[str, Any]) -> Dict[str, A
         wk = torch.randn(E, E, device=cfg.device, dtype=dtype, requires_grad=cfg.backward)
         wv = torch.randn(E, E, device=cfg.device, dtype=dtype, requires_grad=cfg.backward)
         wo = torch.randn(E, E, device=cfg.device, dtype=dtype, requires_grad=cfg.backward)
+
+        
+        fwd_call = lambda: _fwd_only(fn, x, wq, wk, wv, wo, cfg.H)
+        bwd_call = lambda: (_fwd_bwd(fn, x, wq, wk, wv, wo, cfg.H), _reset_grads(x, wq, wk, wv, wo))
+
 
         @torch.no_grad()
         def fwd_call():
