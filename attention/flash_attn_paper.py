@@ -131,8 +131,13 @@ def flashattention_forward_paper(
 
             # m_tilde = rowmax(scores), P_tilde = exp(scores - m_tilde), l_tilde = rowsum(P_tilde)
             m_tilde = scores.max(dim=-1).values                      # (B,H,Br)
-            P_tilde = torch.exp(scores - m_tilde.unsqueeze(-1))       # (B,H,Br,Bc)
-            l_tilde = P_tilde.sum(dim=-1)                             # (B,H,Br)
+            all_masked = torch.isneginf(m_tilde)  # (B,H,Br) rows where everything is -inf
+            m_tilde_safe = torch.where(all_masked, torch.zeros_like(m_tilde), m_tilde)
+            # This prevents (-inf) - (-inf) → NaN
+            P_tilde = torch.exp(scores - m_tilde_safe.unsqueeze(-1))
+            P_tilde = torch.where(all_masked.unsqueeze(-1), torch.zeros_like(P_tilde), P_tilde)
+            l_tilde = P_tilde.sum(dim=-1)
+            
 
             # m_new, l_new (online softmax update)
             m_new = torch.maximum(m_i, m_tilde)
@@ -339,7 +344,7 @@ class FlashAttentionPaperV1(torch.autograd.Function):
             block_q=block_q,
             block_k=block_k,
         )
-        return dQ, dK, dV, None, None, None, None, None
+        return dQ, dK, dV, None, None, None, None, None, None
 
 
 def flashattention_paper(
